@@ -2,7 +2,9 @@
 title: "Act 11"
 author: "Marta Rico Delgado"
 date: "2024-08-29"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
