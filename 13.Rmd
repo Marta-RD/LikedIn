@@ -1,0 +1,242 @@
+---
+title: "act13"
+author: "Marta Rico Delgado"
+date: "2024-09-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+library(car)
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(kableExtra)
+library(latexpdf)
+library(modeest)
+library(plotly)
+library(plyr)
+library(prettyR)
+library(stats)
+library(tidyverse)
+library(tidymodels)
+library(webshot)
+library(agricolae)
+library(ggthemes)
+library(tidyverse)
+library(psych)
+library(PASWR)
+library(MASS)
+library(GGally)
+library(corrplot)
+library(readxl)
+library(WRS2)
+library(caret)
+library(sjPlot)
+library(sjlabelled)
+library(reshape2)
+library(survival)
+library(survminer)
+library(ISwR)
+library(cmprsk)
+library(tidycmprsk)
+library(gtsummary)
+library(broom.helpers)
+```
+
+
+## <span style="color:black"> **Cargar el conjunto de datos lung del paquete survminer:data(Melanoma, package = "MASS") ** </span>
+
+
+
+```{r}
+data("Melanoma", package="MASS")
+head(Melanoma) %>%
+  kable(format="html") %>%
+  kable_styling(font_size = 12,
+                bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE,
+                position = "center") %>%
+  row_spec(0, align = "right", font_size = 14, italic = TRUE, bold = TRUE, col = "white", background = "lightblue")
+
+```
+```{r}
+str(Melanoma)
+```
+
+```{r}
+Melanoma <- Melanoma %>% 
+  mutate(status = as.factor(dplyr::recode(status, `1` = 1, `2` = 0, `3` = 2)))
+
+head(Melanoma)%>% kable(format="html")%>% kable_styling(font_size = 12,
+                                                bootstrap_options = c("striped", "hover", "condensed"),
+                                                full_width = FALSE,
+                                                position = "center") %>%
+  row_spec(0, align = "right",font_size = 14, italic = TRUE, bold = TRUE, col="white", background = "lightblue")
+
+```
+
+## <span style="color:black"> **Incidencia Acumulada** </span>
+
+#Apuntes 
+La incidencia acumulativa para riesgos competitivos se refiere a la probabilidad de que ocurra un evento de interés específico cuando hay múltiples eventos que pueden suceder (llamados "riesgos competitivos"). En este contexto, no solo consideramos el riesgo de un evento particular, sino también cómo los otros eventos en competencia pueden afectar esa probabilidad.
+
+Por ejemplo, si estamos interesados en el tiempo hasta la muerte por una enfermedad en particular, pero también existe el riesgo de que los pacientes mueran por otras causas, este segundo tipo de evento compite con el primero, ya que una persona no puede morir dos veces.
+
+Incidencia acumulada: La función de incidencia acumulativa (CIF, por sus siglas en inglés) estima la probabilidad de que un evento específico ocurra antes de un tiempo determinado, teniendo en cuenta los otros eventos en competencia. A diferencia de las estimaciones tradicionales de supervivencia (como Kaplan-Meier), donde los otros eventos son censurados, aquí se tienen en cuenta explícitamente los riesgos en competencia.
+
+Prueba de Gray: Es una prueba estadística utilizada para comparar las funciones de incidencia acumulativa entre dos o más grupos en presencia de riesgos competitivos. Se utiliza para determinar si existe una diferencia significativa entre las curvas de incidencia acumulada de los diferentes grupos, lo cual es esencial en estudios clínicos para evaluar, por ejemplo, si un tratamiento tiene un impacto diferente en el tiempo hasta el evento, en comparación con otro tratamiento.
+
+En R, el paquete cmprsk proporciona la función cuminc, que se utiliza para calcular la función de incidencia acumulativa en presencia de riesgos competitivos.
+```{r}
+Melanoma$status= as.factor(Melanoma$status,
+                       levels = c(0,1,2),
+                       labels = c("Censored","Died from melamona","Died from other reason"))
+
+Fre_df= as.data.frame(table(Melanoma$status))
+names(Fre_df)=c("Status", "Frequency")
+Fre_df
+
+```
+```{r}
+cuminc_m=cuminc(ftime=Melanoma$time,
+                Melanoma$status,
+                cencode=0)
+length(cuminc_m) 
+```
+```{r}
+eventos <- c("Censored", "Died from melanoma", "Died from other reason")
+incidencia_dfs <- lapply(1:3, function(i) {
+  evento_ac <- cuminc_m[[i]]
+  incidencia_df <- data.frame(
+    TIME = evento_ac$time,
+    INCIDENCIA = evento_ac$est,
+    DAYS = evento_ac$time,
+    EVENTO = eventos[i]
+  )
+  return(incidencia_df)
+})
+
+typeof(incidencia_dfs)
+length(incidencia_dfs)
+```
+
+#do.call(): Esta función te permite llamar a otra función y pasarle argumentos en forma de lista. En este caso, se utiliza para llamar a la función rbind().
+#rbind(): Esta función combina data frames por filas. Requiere que los data frames tengan las mismas columnas.
+```{r}
+incidencia_final <- do.call(rbind, incidencia_dfs)
+incidencia_f_f <- incidencia_final %>%
+  filter(EVENTO %in% c("Censored", "Died from melanoma", "Died from other reason"))
+
+incidencia_f_f$EVENTO <- as.factor(incidencia_f_f$EVENTO)
+
+Col_eventos <- c("Censored" = "black", "Died from melanoma" = "blue", "Died from other reason" = "red")
+
+g <- ggplot(incidencia_f_f, aes(x = DAYS, y = INCIDENCIA, colour = EVENTO)) +
+  geom_step() +
+  scale_x_continuous(limits = c(0, max(Melanoma$time))) +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_colour_manual(values = Col_eventos, name = "Event Type") +
+  labs(title = "Cumulative Incidence",
+       subtitle = "Analysis by days",
+       x = "Days",
+       y = "Cumulative incidence") +
+  theme_minimal() +
+  theme(legend.title = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        plot.title = element_text(size = 12, face = "bold"),
+        plot.subtitle = element_text(size = 10))
+
+g
+```
+
+
+## <span style="color:black"> **Supervivencia Global ** </span>
+
+
+
+```{r}
+cuminc(Surv(time, status) ~ ulcer, data = Melanoma) %>%
+  tbl_cuminc(times = 1826.25,
+             label_header = "**5 years cuminc**") %>%
+  add_p()
+```
+
+
+```{r}
+crr(Surv(time, status) ~ sex + age, data = Melanoma) %>%
+  tbl_regression(exp = TRUE)
+```
+#Hazard Ratio (HR): Este es un valor que indica el riesgo relativo de un evento (como una enfermedad o un evento adverso) en un grupo en comparación con otro
+
+```{r}
+Melanoma$time <- Melanoma$time / 30
+
+
+surv_obj <- with(Melanoma, Surv(time = time, event = status != "Censored"))
+
+
+fit <- survfit(surv_obj ~ 1, data = Melanoma)
+
+
+time <- fit$time
+survival <- fit$surv
+upper <- fit$upper
+lower <- fit$lower
+
+surv_data <- data.frame(Time = time,
+                         Survival = survival,
+                         UpperCI = upper,
+                         LowerCI = lower)
+
+
+if (!0 %in% surv_data$Time) {
+  surv_data <- rbind(data.frame(Time = 0,
+                                 Survival = 1,
+                                 UpperCI = 1,
+                                 LowerCI = 1),
+                     surv_data)
+}
+
+
+graf <- ggplot(surv_data, aes(x = Time, y = Survival)) +
+  geom_step() +
+  geom_ribbon(aes(ymin = LowerCI, ymax = UpperCI), alpha = 0.2) +  # Confidence interval
+  scale_x_continuous(breaks = seq(0, max(surv_data$Time), by = 12)) +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(title = "Survival Free of Death from Melanoma and Death from Other Reasons",
+       x = "Months",
+       y = "Survival Probability") +
+  theme_bw()
+
+print(graf)
+```
+
+
+```{r}
+times= c(0,6,12,24,36,48,60,72,84,96)
+s=summary(fit, times)
+
+df_summary=data.frame(time=s$time,
+                      n.risk=s$n.risk,
+                      n.event=s$n.event,
+                      survival=round(s$surv,2),
+                      lower=round(s$lower,2),
+                      upper=round(s$upper,2))
+
+df_summary %>% kable(format="html")%>% kable_styling(font_size = 12,
+                                                bootstrap_options = c("striped", "hover", "condensed"),
+                                                full_width = FALSE,
+                                                position = "center") %>%
+  row_spec(0, align = "right",font_size = 14, italic = TRUE, bold = TRUE, col="white", background = "lightblue")
+```
+
+
+
+
+
+
+
