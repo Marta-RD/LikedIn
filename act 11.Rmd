@@ -1,0 +1,353 @@
+---
+title: "Act 11"
+author: "Marta Rico Delgado"
+date: "2024-08-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+library(car)
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(kableExtra)
+library(latexpdf)
+library(modeest)
+library(plotly)
+library(plyr)
+library(prettyR)
+library(stats)
+library(tidyverse)
+library(tidymodels)
+library(webshot)
+library(agricolae)
+library(ggthemes)
+library(tidyverse)
+library(psych)
+library(PASWR)
+library(MASS)
+library(GGally)
+library(corrplot)
+library(readxl)
+library(WRS2)
+library(caret)
+library(sjPlot)
+library(sjlabelled)
+library(reshape2)
+```
+
+## <span style="color:black"> **Con el dataset “wine_quality_red.csv”, ¿Qué factores afectan al pH del vino tinto?. Realizad una regresión multilineal y comentad los resultados.** </span>
+
+```{r}
+wine_red <- readr::read_csv("winequality-red.csv")
+
+head(wine_red)%>%kable(format = "html") %>% kable_styling(bootstrap_options = c("striped", "hover","condensed"),
+                                                      full_width = FALSE,
+                                                      position = "center",
+                                                      font_size = 14) %>%
+  row_spec(0, monospace= TRUE, bold= TRUE, font_size=16, background = "lightblue", align = "right" )
+
+```
+
+```{r}
+# permite tener todas las variables dentro de un mismo rango de valores/ en una misma escala
+
+winered_scale= scale(wine_red, center = TRUE, scale = TRUE)%>% as.data.frame()
+
+head(winered_scale)%>%kable(format = "html") %>% kable_styling(bootstrap_options = c("striped", "hover","condensed"),
+                                                      full_width = FALSE,
+                                                      position = "center",
+                                                      font_size = 14) %>%
+  row_spec(0, monospace= TRUE, bold= TRUE, font_size=16, background = "gray",align = "right" )
+```
+
+```{r}
+train= createDataPartition(winered_scale$pH, p=0.8, list=FALSE)
+
+train.data=winered_scale[train, ]
+test.data=winered_scale[-train, ]
+nrow(train.data)
+```
+```{r}
+nrow(test.data)
+```
+```{r}
+
+#utilizamos "." para utilizar todas las variables independientes y "-" para quitar las variabels que no queramos utilizar. 
+lm1=lm(pH~. -quality, train.data) 
+vif(lm1)
+#El comando vif() se refiere a la "Inflación del Factor de Varianza". 
+#VIF = 1: No hay correlación entre la variable independiente y las demás variables independientes.
+#1 < VIF < 5: Hay una correlación moderada, pero generalmente no es motivo de preocupación.
+#VIF > 5: Hay una alta correlación, lo que indica potencial multicolinealidad. Podría ser prudente revisar las variables.
+#VIF > 10: La multicolinealidad es muy alta, y es probable que los coeficientes de regresión sean inestables y poco fiables. En este caso, podría ser necesario eliminar una o más variables del modelo.
+```
+
+
+```{r}
+
+lm2 <- update(lm1, . ~ . - densidad)
+
+AIC(lm1, lm2)
+#El AIC es un número que permite comparar la calidad de diferentes modelos estadísticos ajustados al mismo conjunto de datos. A mayor valor de AIC, peor se ajusta el modelo.
+```
+
+```{r}
+par(mfrow= c(2,2))
+plot(lm1, add.smooth = FALSE)
+```
+```{r}
+#1. Residuals vs Fitted
+#Descripción: Este gráfico muestra los residuos (errores) en el eje y y los valores ajustados (fitted values) en el eje x.
+#Interpretación:
+#Patrón aleatorio: Si los puntos están distribuidos aleatoriamente alrededor de la línea horizontal (en cero), sugiere que la relación lineal es adecuada y que la varianza de los errores es constante (homocedasticidad).
+#Patrón curvo: Si ves una forma de U o una curva en los puntos, podría indicar que hay una relación no lineal entre las variables.
+#Dispersión creciente o decreciente: Si los residuos se expanden o contraen a medida que los valores ajustados aumentan, esto sugiere heterocedasticidad (varianza no constante de los errores).
+#2. Normal Q-Q
+#Descripción: Este gráfico compara la distribución de los residuos con una distribución normal. Los residuos se ordenan y se comparan con los cuantiles teóricos de una distribución normal.
+#Interpretación:
+#Residuos sobre la línea: Si los puntos caen aproximadamente sobre la línea diagonal, sugiere que los residuos siguen una distribución normal.
+#Desviaciones de la línea: Grandes desviaciones de la línea diagonal pueden indicar que los residuos no son normalmente distribuidos, lo que viola uno de los supuestos clave del modelo de regresión.
+#3. Scale-Location (o Spread-Location)
+#Descripción: Este gráfico muestra la raíz cuadrada de los residuos estandarizados en el eje y contra los valores ajustados en el eje x.
+#Interpretación:
+#Línea horizontal: Una línea horizontal con puntos distribuidos aleatoriamente sugiere homocedasticidad, es decir, la varianza de los errores es constante.
+#Patrón de embudo: Si ves un patrón de embudo (puntos más dispersos en un extremo), esto indica heterocedasticidad, lo que significa que la varianza de los errores no es constante y podría ser un problema para la validez del modelo.
+#4. Residuals vs Leverage
+#Descripción: Este gráfico ayuda a identificar puntos influyentes, mostrando los residuos estandarizados contra el "leverage" (influencia) de cada punto de datos.
+#Interpretación:
+#Puntos dentro de las líneas de Cook: Si los puntos están dentro de las líneas de Cook, no hay puntos con influencia excesiva.
+#Puntos fuera de las líneas de Cook: Si hay puntos fuera de las líneas de Cook, estos puntos son influyentes y podrían estar afectando significativamente el ajuste del modelo. Estos puntos deben ser revisados, ya que podrían indicar valores atípicos que distorsionan los resultados del modelo.
+#Resumen general:
+#Residuals vs Fitted: Verifica la linearidad y la homocedasticidad.
+#Normal Q-Q: Verifica la normalidad de los residuos.
+#Scale-Location: Revisa la homocedasticidad (constancia de la varianza).
+#Residuals vs Leverage: Identifica puntos influyentes y posibles valores atípicos.
+```
+
+
+```{r}
+summary(lm1)
+```
+
+
+
+```{r}
+resumen=tab_model(lm1,collapse.ci = TRUE)
+show(resumen)
+
+```
+
+```{r}
+predicion= lm1%>% predict(test.data)
+
+data.frame(R2=R2(predicion, test.data$pH),
+           RMSE= RMSE(predicion,test.data$pH),
+           MAE=MAE(predicion, test.data$pH),
+           AIC=AIC(lm1),
+           BIC=BIC(lm1))
+```
+
+
+
+
+
+## <span style="color:black"> **Ahora nos dan también el dataset “wine_quality_white.csv”. Comparad gráficamente y mediante tests de hipótesis las características de ambos ** </span>
+
+```{r}
+wine_white<-readr::read_csv("winequality-white.csv")
+
+head(wine_white)%>%kable(format = "html") %>% kable_styling(bootstrap_options = c("striped", "hover","condensed"),
+                                                      full_width = FALSE,
+                                                      position = "center",
+                                                      font_size = 14) %>%
+  row_spec(0, monospace= TRUE, bold= TRUE, font_size=16, background = "lightpink", align = "center", col="red" )
+```
+
+```{r}
+wine_red$wine="rojo"
+wine_white$wine="blanco"
+head(wine_white)%>%kable(format = "html") %>% kable_styling(bootstrap_options = c("striped", "hover","condensed"),
+                                                      full_width = FALSE,
+                                                      position = "center",
+                                                      font_size = 14) %>%
+  row_spec(0, monospace= TRUE, bold= TRUE, font_size=16, background = "lightpink", align = "center", col="white" )
+
+```
+
+
+```{r}
+wines= rbind(wine_red,wine_white)
+wine_r= melt(wines, id.vars = "wine",measure.vars = 1:12)
+wine_r %>% head() %>% kable()%>% kable_styling()
+```
+
+
+```{r}
+ggplot(wine_r, aes(x=wine, y=value))+
+  geom_boxplot()+
+  facet_wrap(~variable, nrow = 3,ncol = 4, scales = "free")
+```
+
+
+```{r}
+nombres_columnas = colnames(wines)[sapply(wines, is.numeric)]
+#sapply:Puede devolver un vector, matriz o lista dependiendo del resultado de la función aplicada. 
+resultados = data.frame(
+  variable = nombres_columnas,
+  estimador = numeric(length(nombres_columnas)),
+  CI_95_inf = numeric(length(nombres_columnas)),
+  CI_95_sup = numeric(length(nombres_columnas)),
+  p_valor = numeric(length(nombres_columnas)),
+  p_valor_ajustado = numeric(length(nombres_columnas)))
+
+for(i in 1:length(nombres_columnas)) {
+  variable = nombres_columnas[i]
+  print(variable)
+  f = as.formula(paste0("`", variable, "` ~ wine"))
+
+  print(f)
+  test = pb2gen(f, data = wines, est = "median")
+  resultados$estimador[i] <- test$test
+  resultados$CI_95_inf[i] <- test$conf.int[1]
+  resultados$CI_95_sup[i] <- test$conf.int[2]
+  resultados$p_valor[i] <- test$p.value
+}
+```
+```{r}
+resultados$p_valor_ajustado <- p.adjust(resultados$p_valor, method = "bonferroni")
+
+resultados %>% kable(format = "html") %>% kable_styling(bootstrap_options = c("striped", "hover","condensed"),
+                                                      full_width = FALSE,
+                                                      position = "center",
+                                                      font_size = 14) 
+```
+
+
+
+## <span style="color:black"> **Realizad un análisis exploratorio, una regresión logística del dataset “diabetes.csv” e intentad predecir la diabetes. La variable dependiente es “Outcome”.** </span>
+
+```{r}
+data= readr::read_csv("diabetes.csv")
+kable(head(data), format = "html", escape =FALSE )%>% 
+kable_styling(full_width = FALSE, 
+              font_size = 12,
+              bootstrap_options =c("hover", "striped","condensed"))%>%
+  row_spec(0, bold = TRUE, align = "right", font_size = 14, col="white", background = "gray")
+```
+
+```{r}
+data =data %>%
+  mutate(Outcome= ifelse(Outcome==1, "Positivo", "Negativo"))%>%
+  mutate(Outcome=factor(Outcome, factor(c("Positivo", "Negativo"), labels = c("Positivo", "Negativo"))))%>%
+  relocate(Outcome, .before = Pregnancies)
+kable(head(data), format = "html", escape =FALSE )%>% 
+kable_styling(full_width = FALSE, 
+              font_size = 12,
+              bootstrap_options =c("hover", "striped","condensed"))%>%
+  row_spec(0, bold = TRUE, align = "right", font_size = 14, col="white", background = "gray")
+
+```
+
+```{r}
+calc_aic= function(vars,data){
+  formula=as.formula(paste("Outcome ~", paste(vars,collapse = "+")))
+  model=glm(formula, data = data, family = binomial())
+  AIC(model)
+}
+
+
+predictores= c("Outcome", "Pregnancies","Glucose","BloodPressure","SkinThickness",	"Insulin","BMI","DiabetesPedigreeFunction","Age")
+
+combinaciones= list()
+for(i in 1:length(predictores)){
+  combinaciones=c(combinaciones, combn(predictores, i, simplify=FALSE))
+}
+#for se utiliza para repetir un bloque de código un número determinado de veces, basado en una secuencia.Itera sobre objetos como números, caracteres, listas o incluso otros tipos de objetos.La variable en el bucle toma un valor de la secuencia en cada iteración.
+
+head(combinaciones, 20)
+```
+
+```{r}
+aic_val=sapply(combinaciones, calc_aic, data=data)
+aic_val
+#Sapply, se utiliza para aplicar una función a cada elemento de una lista, vector o cualquier objeto iterable, y simplifica automáticamente el resultado cuando es posible.
+```
+
+
+```{r}
+mejor_modelo= combinaciones[[which.min(aic_val)]]
+mejor_modelo
+```
+
+```{r}
+formula_mm= paste ("Outcome~", paste(mejor_modelo, collapse="+"))
+modelo_final=glm(as.formula(formula_mm), data=data, family = binomial())
+modelos_aic= data.frame(
+  Formula= sapply (combinaciones, function(vars) paste("Outcome~", paste(vars, collapse = "+"))),
+  AIC=aic_val)
+kable(modelos_aic, format = "html", escape =FALSE )%>% 
+kable_styling(full_width = FALSE, 
+              font_size = 12,
+              bootstrap_options =c("hover", "striped","condensed"))%>%
+  row_spec(0, bold = TRUE, align = "left", font_size = 14, col="white", background = "gray")
+
+```
+
+
+
+```{r}
+modelos_aic= modelos_aic[order(modelos_aic$AIC),]
+kable(modelos_aic, format = "html", escape =FALSE )%>% 
+kable_styling(full_width = FALSE, 
+              font_size = 12,
+              bootstrap_options =c("hover", "striped","condensed"))%>%
+  row_spec(0, bold = TRUE, align = "left", font_size = 14, col="white", background = "gray")
+```
+
+
+```{r}
+
+
+resumen_final <- tidy(modelo_final, conf.int = TRUE) %>%
+  filter(term != "(Intercept)") %>% 
+  mutate(
+    odds.ratio = round(exp(estimate), 2),  
+    CI_lower = round(exp(conf.low), 2),    
+    CI_upper = round(exp(conf.high), 2)  
+  ) %>%
+  dplyr::select(term, odds.ratio, CI_lower, CI_upper, p.value) 
+
+
+bold_if_sig <- function(p_value) {
+  p_value_r = round(p_value, 4) 
+  if (p_value < 0.05) {         
+    cell_spec(p_value_r, format = "html", bold = TRUE, color = "red")
+  } else {
+    as.character(p_value_r)    
+  }
+}
+
+
+resumen_final$p.value <- sapply(resumen_final$p.value, bold_if_sig)
+
+cat("El modelo final se compone de las siguientes variables:", formula_mm, ":\n")
+
+```
+
+```{r}
+print(kable(resumen_final, format = "html", escape =FALSE )%>% 
+kable_styling(full_width = FALSE, 
+              font_size = 12,
+              bootstrap_options =c("hover", "striped","condensed"))%>%
+  row_spec(0, bold = TRUE, align = "left", font_size = 14, col="white", background = "gray"))
+```
+
+
+
+
+
+
+
