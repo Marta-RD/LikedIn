@@ -1,0 +1,323 @@
+---
+title: "RicoDelgado_Actividad03"
+author: "Marta Rico Delgado"
+date: "2024-06-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+library(car)
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(kableExtra)
+library(latexpdf)
+library(modeest)
+library(plotly)
+library(plyr)
+library(prettyR)
+library(stats)
+library(tidyverse)
+library(webshot)
+library(agricolae)
+library(ggthemes)
+```
+
+
+# <span style = "color:blue"> **Supongamos que lanzamos una moneda 5 veces y que X es la v.a. que representa el número de caras (0, 1, 2, 3, 4 y 5). Calcula las siguientes cuestiones:** </span>
+
+
+## <span style = "color:black"> **Cuestión 1** Espacio muestral completo </span>
+```{r}
+espacio_muestral= expand.grid(c("cara", "cruz"),
+                              c("cara", "cruz"),
+                              c("cara", "cruz"),
+                              c("cara", "cruz"),
+                              c("cara", "cruz"))
+
+names(espacio_muestral)[1]= "1º lanzamiento"
+names(espacio_muestral)[2]= "2º lanzamiento"
+names(espacio_muestral)[3]= "3º lanzamiento"
+names(espacio_muestral)[4]= "4º lanzamiento"
+names(espacio_muestral)[5]= "5º lanzamiento"
+
+formato= c("striped", "bordered", "hover", "responsive")
+espacio_muestral %>% kable()%>%kable_styling(bootstrap_options = formato,
+                                             full_width = FALSE,
+                                             position = "center",
+                                             font_size = 16)%>%
+  
+row_spec(0, bold = TRUE, color = "white", background = "lightblue", align = "center") %>%
+  row_spec(1:nrow(espacio_muestral), bold =TRUE, color = "black", background = "white", align = "left" )
+
+```
+
+
+## <span style = "color:black"> **Cuestión 2** Número de elementos del espacio muestral completo </span>
+```{r}
+dim(espacio_muestral)
+```
+
+```{r}
+nº_filas= nrow(espacio_muestral)
+nº_filas
+
+```
+
+```{r}
+nº_columnas= length(espacio_muestral)
+nº_columnas
+```
+
+
+
+
+## <span style = "color:black"> **Cuestión 3**Número de elementos del espacio muestral sacar 3 caras y del espacio muestral sacar 4 caras </span>
+
+```{r}
+espacio_muestral$total_caras = rowSums(espacio_muestral == "cara")
+
+
+formato= c("striped", "bordered", "hover", "responsive")
+
+espacio_muestral %>% kable()%>%kable_styling(bootstrap_options = formato,
+                                             full_width = FALSE,
+                                             position = "center",
+                                             font_size = 16)%>%
+  
+row_spec(0, bold = TRUE, color = "white", background = "lightblue", align = "center") %>%
+  row_spec(1:nrow(espacio_muestral), bold =TRUE, color = "black", background = "white", align = "left" )
+```
+```{r}
+Total= c(espacio_muestral$total_caras)
+Total
+```
+```{r}
+Total3C= which(Total==3)
+Total3C
+```
+```{r}
+Total4C =which(Total==4)
+Total4C
+
+```
+
+
+
+```{r}
+Tabla=table(espacio_muestral$total_caras)
+df=data.frame(Tabla)
+names(df)[1] ="nº de caras"
+names(df)[2]="nº de elementos"
+formato <- c("striped", "bordered", "hover", "responsive")
+df %>% kable() %>% kable_styling(bootstrap_options = formato,
+                                 full_width = FALSE,
+                                 position = "center",
+                                 font_size = 16) %>%
+  row_spec(0, italic = TRUE, color = "black", background = "#98FF98", align = "center")
+
+
+```
+
+
+## <span style = "color:black"> **Cuestión 4** Función de probabilidad: Probabilidad de que salga 0 caras, 1 cara, 2 caras, 3 caras, 4 caras y 5 caras </span>
+```{r}
+m= matrix(nrow = 6,
+          ncol = 1,
+          byrow = TRUE,
+          dimnames = list(c("0 caras","1 caras","2 caras","3 caras","4 caras","5 caras"),
+                          c("Función de probabilidad")))
+m_df=as.data.frame(m)
+p_total=1/32
+m_df[1,1]=p_total*1
+m_df[2,1]=p_total*5
+m_df[3,1]=p_total*10
+m_df[4,1]=p_total*10
+m_df[5,1]=p_total*5
+m_df[6,1]=p_total*1
+
+formato <- c("striped", "bordered", "hover", "responsive")
+
+m_df %>% 
+  kable() %>% 
+  kable_styling(bootstrap_options = formato, 
+                full_width = FALSE, 
+                position = "center", 
+                font_size = 16) %>%
+   row_spec(0, bold = TRUE, color = "white", background = "lightblue", align = "center") %>%
+  row_spec(1:nrow(m_df), color = "#FF5733", bold = TRUE, align = "center") 
+
+
+```
+**************************************************************************************************************************************************************************
+
+Versión 2
+x= C(0,1,2,3,4,5)
+n= 5
+p=0,5
+```{r}
+x= c(0,1,2,3,4,5)
+n= 5
+p=0.5
+funcion_probabilidad=dbinom(x=x, size=n, prob = p)
+T_X=data.frame(Número_caras=x,
+               Funciones_probabilidad=funcion_probabilidad)
+
+formato <- c("striped", "bordered", "hover", "responsive")
+
+T_X %>% 
+  kable() %>% 
+  kable_styling(bootstrap_options = formato, 
+                full_width = FALSE, 
+                position = "center", 
+                font_size = 16) %>%
+  row_spec(0, bold = TRUE, color = "red", background = "pink", align = "center") %>%
+  row_spec(1:nrow(m_df), color = "#000",background = "white", bold = TRUE, align = "center")
+
+
+```
+
+
+## <span style = "color:black"> **Cuestión 5** Realizar un gráfico de la función de probabilidad </span>
+
+
+```{r}
+f_p = ggplot(data=m_df, aes(c("0 caras","1 caras","2 caras","3 caras","4 caras","5 caras"), m_df$`Función de probabilidad`)) +
+  geom_col(width = 0.7, fill="salmon") +
+  labs(title = "Función probabilidad varibale X", x="Numero de veces donde el resultado es cara", y="Probabilidad") +
+  theme_hc() +
+  geom_text(label=m_df$`Función de probabilidad`,nudge_y = 0.05, check_overlap = TRUE)
+p=ggplotly(f_p)
+p
+```
+
+
+## <span style = "color:black"> **Cuestión 6** Función de distribución </span>
+
+```{r}
+Funcion_distribución = cumsum(m_df$`Función de probabilidad`)
+Funcion_distribución
+```
+
+```{r}
+x= c(0,1,2,3,4,5)
+n= 5
+p=0.5
+funcion_distribucion=pbinom(x,n,p)
+T_X=data.frame(Número_caras=x,
+               Función_distribución= funcion_distribucion)
+
+formato <- c("striped", "bordered", "hover", "responsive")
+
+T_X %>% 
+  kable() %>% 
+  kable_styling(bootstrap_options = formato, 
+                full_width = FALSE, 
+                position = "center", 
+                font_size = 16) %>%
+  row_spec(0, bold = TRUE, color = "red", background = "pink", align = "center") %>%
+  row_spec(1:nrow(T_X), color = "#000",background = "white", bold = TRUE, align = "center")
+```
+
+
+## <span style = "color:black"> **Cuestión 7** Realizar un gráfico de la función de distribución </span>
+
+```{r}
+ma_df <- data.frame(
+  numero_caras = c("0 caras", "1 caras", "2 caras", "3 caras", "4 caras", "5 caras"),
+  Funcion_distribución = c(0.03125,0.1875,0.5,0.8125,0.9687,1))
+
+fu_p <- ggplot(data = ma_df, aes(x = numero_caras, y = Funcion_distribución, group = 1)) +
+  geom_line(size = 1, linetype = 2, color = "blue") +
+  geom_point(shape = 5, color = "black") +
+  labs(
+    title = "Función de distribución variable X vs Número de caras",
+    x = "Número de veces donde el resultado es cara",
+    y = "Probabilidad"
+  ) +
+  theme_hc() +  
+  geom_text(aes(label = Funcion_distribución), nudge_y = 0.05, check_overlap = TRUE)
+
+
+ggplotly(fu_p) 
+            
+```
+
+
+## <span style = "color:black"> **Cuestión 8** Probabilidad de que el número de caras sea menor o igual que 3 </span>
+
+```{r}
+x= c(0,1,2,3,4,5)
+p=0.5
+n=5
+
+Ta=data.frame(Número_caras=x,
+             Función_probabilidad =dbinom(x=x, size = n, prob = p),
+             Función_distribución= pbinom(c(0,1,2,3,4,5),5,0.5))
+
+formato= c("striped", "bordered", "hover","responsive")
+Ta %>% kable() %>% 
+  kable_styling(bootstrap_options = formato, 
+                full_width = FALSE, 
+                position = "center", 
+                font_size = 16) %>%
+    row_spec(0, bold = TRUE, color = "lightyellow", background = "salmon") %>% column_spec(1, color = "#000",background = "white", bold = TRUE)
+  
+```
+
+```{r}
+P_menor_igual_3= pbinom(3,5,0.5) *100
+P_menor_igual_3
+```
+La probabilidad es del 81%.
+
+
+## <span style = "color:black"> **Cuestión 9** Probabilidad de que el número de caras sea mayor que 2 </span>
+
+```{r}
+P_mayor_2= (1- pbinom(2,5,0.5))*100
+P_mayor_2
+```
+La probabilidad es del 50%#
+
+
+## <span style = "color:black"> **Cuestión 10** Probabilidad de que el número de caras se encuentre entre 1 y 4 (ambos incluidos) </span>
+```{r}
+p_entre_1y4= sum(dbinom(1:4,5,0.5))*100
+p_entre_1y4
+```
+La probabilidad es del 94%
+
+
+## <span style = "color:black"> **Cuestión 11** Probabilidad de que el número de caras se encuentre entre 1 y 4 (ambos NO incluidos) </span>
+```{r}
+p_entre_2y3= sum(dbinom(2:3,5,0.5))*100
+p_entre_2y3
+``` 
+La probabilidad es del 63%
+
+## <span style = "color:black"> **Cuestión 12** Esperanza de la v.a. X </span>
+
+```{r}
+n=5
+P=0.5
+Esperanza= n*p
+Esperanza
+```
+La esperanza es igual a 2,5. 
+
+
+## <span style = "color:black"> **Cuestión 13** Varianza de la v.a. X : </span>
+
+
+```{r}
+
+n = 5
+p = 0.5
+
+varianza = n * p * (1 - p)
+varianza
+```
+El valor de la varianza de la variable aleatoria es de 1,25.
