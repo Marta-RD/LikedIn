@@ -1,0 +1,380 @@
+---
+title: "Act 12"
+author: "Marta Rico Delgado"
+date: "2024-09-13"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+library(car)
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(kableExtra)
+library(latexpdf)
+library(modeest)
+library(plotly)
+library(plyr)
+library(prettyR)
+library(stats)
+library(tidyverse)
+library(tidymodels)
+library(webshot)
+library(agricolae)
+library(ggthemes)
+library(tidyverse)
+library(psych)
+library(PASWR)
+library(MASS)
+library(GGally)
+library(corrplot)
+library(readxl)
+library(WRS2)
+library(caret)
+library(sjPlot)
+library(sjlabelled)
+library(reshape2)
+library(survival)
+library(survminer)
+```
+
+## <span style="color:black"> **La actividad consiste en escoger sólo 1 de los siguientes datasets(data(lung), library(survival), library(survminer)), realizar un ANÁLISIS DE SUPERVIVENCIA y comentar los resultados.** </span>
+
+```{r}
+data("lung", package = "survminer")
+
+df=lung
+
+head(df)%>% kable(format="html")%>% kable_styling(font_size = 12,
+                                                bootstrap_options = c("striped", "hover", "condensed"),
+                                                full_width = FALSE,
+                                                position = "center") %>%
+  row_spec(0, align = "right",font_size = 14, italic = TRUE, bold = TRUE, col="white", background = "lightblue")
+
+
+```
+
+```{r}
+#para elimnar una columna de nuestro dataset 
+df["inst"]=NULL
+
+#Cambiamos la variable status 
+df= df %>% mutate(status=as.numeric(dplyr::recode(status, `1`="0", `2`="1")))
+
+head(df)%>% kable(format="html")%>% kable_styling(font_size = 12,
+                                                bootstrap_options = c("striped", "hover", "condensed"),
+                                                full_width = FALSE,
+                                                position = "center") %>%
+  row_spec(0, align = "right",font_size = 14, italic = TRUE, bold = TRUE, col="white", background = "lightblue")
+
+```
+
+
+```{r}
+category_col<- c("sex","ph.ecog")
+
+for(col in category_col){
+  df[[col]] <- as.factor(df[[col]])
+}
+str(df)
+
+
+```
+
+```{r}
+df$time_meses<-df$time/30
+
+surv_obj<-Surv(time=df$time_meses,
+               event=df$status)
+
+fit=survfit(surv_obj~1, data=df)#el 1 en este caso es para seleccionar a todas las variables
+g=ggsurvplot(fit,
+             data = df,
+             pval = FALSE,
+             conf.int = FALSE,
+             ggtheme = theme_par(),
+             col = c("#9370db"),
+             title="Supervivencia global",
+             xlab="Meses",
+             ylab="Probabilidad de supervivencia",
+             xlim=c(0, max(df$time_meses)))
+g$plot=g$plot+
+  geom_vline(xintercept=0, color="black", linetype="dotted")+
+  geom_vline(xintercept=3, color="black", linetype="dotted")+
+  geom_vline(xintercept=6, color="black", linetype="dotted")+
+  geom_vline(xintercept=9, color="black", linetype="dotted")+
+  geom_vline(xintercept=12, color="black", linetype="dotted")+
+  geom_vline(xintercept=15, color="black", linetype="dotted")+
+  geom_vline(xintercept=18, color="black", linetype="dotted")+
+  geom_vline(xintercept=21, color="black", linetype="dotted")+
+  geom_vline(xintercept=24, color="black", linetype="dotted")+
+  geom_vline(xintercept=27, color="black", linetype="dotted")+
+  geom_vline(xintercept=30, color="black", linetype="dotted")+
+  geom_vline(xintercept=33, color="black", linetype="dotted")
+  
+g$plot=g$plot+scale_x_continuous(breaks = seq(from=0, to=max(df$time_meses), by=3), expand=c(0,0)) #En el eje X aparecera que los valores cada 3 meses.
+
+g
+```
+
+
+
+```{r}
+times<- seq(from=0, to=max(df$time_meses), by=3)
+
+sumary_fit=summary(fit, times = times) 
+
+df_sumary<- data.frame( time=sumary_fit$time,
+                        n.risk= sumary_fit$n.risk,
+                        n.event= sumary_fit$n.event,
+                        survival=round(sumary_fit$surv,2),
+                        lower=round(sumary_fit$lower,2),
+                        upper=round(sumary_fit$upper,2))
+df_sumary%>% kable(format="html")%>% kable_styling(font_size = 12,
+                                                bootstrap_options = c("striped", "hover", "condensed"),
+                                                full_width = FALSE,
+                                                position = "center") %>%
+  row_spec(0, align = "right",font_size = 14, italic = TRUE, bold = TRUE, col="white", background = "lightblue")
+
+
+```
+
+```{r}
+surv_obj= Surv(time = df$time_meses, event = df$status)
+
+df$sex=factor(df$sex, levels = c(1,2), labels = c("Hombre", "Mujer"))
+
+fit= survfit(surv_obj ~ df$sex, data=df)
+
+g1=ggsurvplot(fit,
+             data = df,
+             pval = FALSE,
+             conf.int = FALSE,
+             legend.title="Sexos",
+             legend.labs=levels(df$sex),
+             ggtheme = theme_par(),
+             palette = c("blue","purple"),
+             title="Supervivencia por sexos",
+             xlab="Meses",
+             ylab="Probabilidad de supervivencia",
+             xlim=c(0, max(df$time_meses)))
+g1$plot=g1$plot+
+  geom_vline(xintercept=0, color="black", linetype="dotted")+
+  geom_vline(xintercept=3, color="black", linetype="dotted")+
+  geom_vline(xintercept=6, color="black", linetype="dotted")+
+  geom_vline(xintercept=9, color="black", linetype="dotted")+
+  geom_vline(xintercept=12, color="black", linetype="dotted")+
+  geom_vline(xintercept=15, color="black", linetype="dotted")+
+  geom_vline(xintercept=18, color="black", linetype="dotted")+
+  geom_vline(xintercept=21, color="black", linetype="dotted")+
+  geom_vline(xintercept=24, color="black", linetype="dotted")+
+  geom_vline(xintercept=27, color="black", linetype="dotted")+
+  geom_vline(xintercept=30, color="black", linetype="dotted")+
+  geom_vline(xintercept=33, color="black", linetype="dotted")
+  
+g1$plot=g1$plot+scale_x_continuous(breaks = seq(from=0, to=max(df$time_meses), by=2), expand=c(0,0)) #En el eje X aparecera que los valores cada 3 meses.
+
+g1
+
+
+```
+
+
+```{r}
+df_summary_list = list()
+
+for (grupo in levels(df$sex)) {
+  
+  df_filtered = df[df$sex == grupo, ]
+  
+  surv_obj_fil = Surv(time = df_filtered$time_meses, event = df_filtered$status)
+  
+  fit_filtered = survfit(surv_obj_fil ~ 1, data = df_filtered)
+  
+  summary_fit = summary(fit_filtered, time = times)
+  
+  df_summary = data.frame(time = summary_fit$time,
+                          n.risk = summary_fit$n.risk,
+                          n.event = summary_fit$n.event,
+                          survival = round(summary_fit$surv, 2),
+                          lower = round(summary_fit$lower, 2),
+                          upper = round(summary_fit$upper, 2))
+  df_summary_list[[grupo]] = df_summary
+}
+
+for (i in 1:length(df_summary_list)) {
+  cat("Tabla de supervivencia para sexo", names(df_summary_list)[i], "\n\n")
+  
+  df_summary_list[[i]] %>%
+    kable(format = "html") %>%
+    kable_styling(font_size = 12,
+                  bootstrap_options = c("striped", "hover", "condensed"),
+                  full_width = FALSE,
+                  position = "center") %>%
+    row_spec(0, align = "right", font_size = 14, italic = TRUE, bold = TRUE, col = "white", background = "lightblue") %>%
+    print()
+  
+  cat("\n\n")
+}
+
+```
+
+```{r}
+for (grupo in levels(df$sex)) {
+  
+  df_filtered = df[df$sex == grupo, ]
+  
+  surv_obj_fil = Surv(time = df_filtered$time_meses, event = df_filtered$status)
+  
+  fit_filtered = survfit(surv_obj_fil ~ 1, data = df_filtered)
+  
+  mediana_surv=quantile(fit_filtered, probs=0.5)
+  
+  mediana_valor=mediana_surv[[1]]
+  
+  mensaje_mediana=ifelse(is.na(mediana_valor),"NA (la mediana de superviviencia no se alcanza)", paste(mediana_valor, "Meses"))
+  
+  cat("Mediana de superviviencia para el grupo", grupo, ":", mensaje_mediana, "\n")
+  
+}
+```
+```{r}
+#El test de log-rank se usa principalmente para responder a la pregunta: ¿Existen diferencias significativas en la probabilidad de supervivencia entre los grupos que estoy comparando?¿Cómo funciona? 1)Compara las curvas de supervivencia de dos o más grupos a lo largo del tiempo. 2)En cada punto del tiempo, calcula las diferencias observadas en los eventos de supervivencia (por ejemplo, muertes, recaídas, etc.) entre los grupos y las compara con las diferencias esperadas si no hubiera diferencia real entre los grupos. 3)El resultado es una estadística que sigue una distribución chi-cuadrado.
+
+long_rank_test= survdiff(surv_obj~sex, data=df)
+long_rank_test
+
+```
+El p valor es significativo, 0.001, indicando que hay diferencia de superviviencia entre el grupo de hombre y mujeres. 
+
+```{r}
+#La regresión de Cox genera un modelo predictivo para datos de tiempo de espera hasta el evento. El modelo genera una función de supervivencia que pronostica la probabilidad de que se haya producido el evento de interés en un momento dado t para determinados valores de las variables predictoras. La forma de la función de supervivencia y los coeficientes de regresión de los predictores se estiman mediante los sujetos observados; a continuación, se puede aplicar el modelo a los nuevos casos que tengan mediciones para las variables predictoras.
+
+cox_model= coxph(surv_obj~sex, data=df)
+summary(cox_model)
+
+
+```
+Explicación del resultado de la regresión de cox:
+coef: Es el coeficiente de la variable sexMujer, que es -0.5310. Esto significa que ser mujer está asociado con una reducción en el riesgo de experimentar el evento (en este caso, probablemente la muerte) en comparación con los hombres. Un coeficiente negativo indica que las mujeres tienen un riesgo más bajo que los hombres.
+
+exp(coef): Este es el valor exponencial del coeficiente, conocido como razón de riesgos (hazard ratio, HR). Para sexMujer, el valor es 0.5880. Esto significa que, dado todo lo demás constante, las mujeres tienen un 58.8% del riesgo de los hombres (o una reducción del 41.2% en el riesgo relativo). Un valor de HR < 1 indica un riesgo reducido en mujeres en comparación con hombres.
+
+se(coef): Es el error estándar del coeficiente, que es 0.1672. Esto indica la variabilidad estimada del coeficiente.
+
+z: Es el valor del estadístico Z, calculado dividiendo el coeficiente entre su error estándar (z=−3.176). Este valor se utiliza para calcular la significancia estadística del coeficiente.
+
+Pr(>|z|): Es el valor p correspondiente al estadístico Z, que es 0.00149. Esto indica la probabilidad de que el coeficiente sea igual a cero (sin efecto). Como el valor p es muy bajo (< 0.05), se concluye que el sexo es un predictor estadísticamente significativo del riesgo de experimentar el evento. En este caso, el valor p indica que el efecto del sexo en el riesgo es significativo al nivel del 0.00149.
+
+exp(-coef): Este es el valor inverso de la HR, que es 1.701. Esto representa el riesgo relativo de los hombres frente a las mujeres (1/0.588).
+
+lower .95 y upper .95: Es el intervalo de confianza del 95% para la razón de riesgos, que va de 0.4237 a 0.816. Esto significa que estamos 95% seguros de que la verdadera razón de riesgos para las mujeres en comparación con los hombres está entre 0.4237 y 0.816. Como el intervalo no incluye el valor 1, refuerza la idea de que el efecto del sexo es estadísticamente significativo.
+
+Concordance = 0.579: La concordancia es una medida de qué tan bien el modelo predice el orden de los eventos. Un valor de 0.5 indica que el modelo no tiene capacidad de discriminación (es aleatorio), mientras que un valor de 1 indica una perfecta discriminación. Un valor de 0.579 sugiere que el modelo es moderado en predecir el riesgo de eventos.
+
+Likelihood ratio test: Este es un test de bondad de ajuste del modelo. Un valor alto indica que el modelo es significativamente mejor que un modelo sin covariables (modelo nulo). Aquí, el valor es 10.63 con un valor p de 0.001, lo que indica que el modelo es significativo.
+
+Wald test: Es otra prueba para evaluar si los coeficientes del modelo son significativamente diferentes de cero. El valor es 10.09, también con un valor p de 0.001, lo que refuerza la significancia del coeficiente sexMujer.
+
+Score (logrank) test: Esta es una prueba relacionada con el test log-rank, que compara las curvas de supervivencia entre diferentes grupos. El valor es 10.33 con un valor p de 0.001, lo que indica que hay una diferencia significativa entre los grupos.
+
+
+```{r}
+sum_surv=summary(cox_model)
+
+c_index=sum_surv$concordance["C"]
+coef_summary=sum_surv$coefficients
+ci_summary=sum_surv$conf.int
+
+
+summary_df = data.frame(
+  Variable = rownames(coef_summary),
+  Hazard_Ratio = round(coef_summary[,"exp(coef)"], 2),
+  CI_lower = round(ci_summary[,"lower .95"], 2),
+  CI_upper = round(ci_summary[,"upper .95"], 2),  
+  Pr_z = round(coef_summary[,"Pr(>|z|)"], 4))
+
+summary_df$Pr_z=cell_spec(summary_df$Pr_z,
+                          "html",
+                          color=ifelse(summary_df$Pr_z<0.05,
+                                       "Black",
+                                       "Red"))
+
+caption = paste0("Cox Multivariable. C Index: ", round(c_index, 2))
+
+k= kable(summary_df, format = "html", caption = caption, booktbas=TRUE,escape = FALSE) %>%
+  kable_styling(
+    font_size = 12,
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center")%>%
+ row_spec(0, align = "right", font_size = 14, italic = TRUE, bold = TRUE, col = "white", background = "lightblue") 
+  print(k)
+```
+
+
+
+
+
+
+
+
+
+
+```{r}
+covariables=c("age","sex","ph.karno","ph.ecog","wt.loss")
+
+formula_text=paste("surv_obj ~", paste(covariables, collapse="+"))
+
+formula_obj=as.formula(formula_text)
+
+cox_model=coxph(formula = formula_obj,
+                data=df)
+sum_surv=summary(cox_model)
+
+c_index=sum_surv$concordance["C"]
+coef_summary=sum_surv$coefficients
+ci_summary=sum_surv$conf.int
+
+summary_df = data.frame(
+  Variable = rownames(coef_summary),
+  Hazard_Ratio = round(coef_summary[,"exp(coef)"], 2),
+  CI_lower = round(ci_summary[,"lower .95"], 2),
+  CI_upper = round(ci_summary[,"upper .95"], 2),  
+  Pr_z = round(coef_summary[,"Pr(>|z|)"], 4))
+
+summary_df$Pr_z=cell_spec(summary_df$Pr_z,
+                          "html",
+                          color=ifelse(summary_df$Pr_z<0.05,
+                                       "Black",
+                                       "Red"))
+
+caption = paste0("Cox Multivariable. C Index: ", round(c_index, 2))
+
+k= kable(summary_df, format = "html", caption = caption, booktbas=TRUE,escape = FALSE) %>%
+  kable_styling(
+    font_size = 12,
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center")%>%
+ row_spec(0, align = "right", font_size = 14, italic = TRUE, bold = TRUE, col = "white", background = "lightblue") 
+  print(k)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
