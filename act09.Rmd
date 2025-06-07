@@ -1,0 +1,432 @@
+---
+title: "RicoDelgado_act9"
+author: "Marta Rico Delgado"
+date: "2024-07-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+library(car)
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(kableExtra)
+library(latexpdf)
+library(modeest)
+library(plotly)
+library(plyr)
+library(prettyR)
+library(stats)
+library(tidyverse)
+library(webshot)
+library(agricolae)
+library(ggthemes)
+library(tidyverse)
+library(psych)
+library(PASWR)
+library(MASS)
+library(GGally)
+library(corrplot)
+library(readxl)
+```
+
+## <span style="color:black"> **Presentar un resumen de las PRUEBAS NO PARAMÉTRICAS Y ROBUSTAS con 1 EJEMPLO en R para cada una de ellas.** </span>
+
+## Principales Pruebas No Paramétricas
+
+### Prueba de Mann-Whitney U
+- **Uso:** Comparación de dos muestras independientes.
+- **Hipótesis:** 
+  - H0: Las distribuciones de ambas poblaciones son iguales.
+  - H1: Las distribuciones de ambas poblaciones no son iguales.
+- **Aplicación:** Alternativa a la prueba t para muestras independientes cuando no se puede asumir normalidad.
+- **Ejemplo:** Para comparar el consumo de gasolina según el tipo de transmisión del coche en el conjunto de datos `mtcars`.
+  - H0: Los datos de consumo de gasolina para la transmisión automática y manual provienen de poblaciones idénticas.
+  - H1: Los datos de consumo de gasolina para la transmisión automática y manual no provienen de poblaciones idénticas.
+  
+```{r}
+data("mtcars")
+data=mtcars
+dim(data)
+auto= data[data$am==0, "mpg"]
+manual=data[data$am==1,"mpg"]
+```
+```{r}
+rw=wilcox.test(auto,manual)
+rw
+```
+Hay evidencias para rechazar la hipótesis nula, ya que el p-valor es 0.001871. Es decir, exiten evidencias significativa de que los datos de consumo de gasolina para la transmisión automática y manuales no provienen de poblaciones idénticas.
+
+### Prueba de Wilcoxon para Muestras Relacionadas
+
+- **Uso**: Comparación de dos conjuntos de medianas que están emparejadas de alguna manera.
+  - Mediciones antes y después de un tratamiento en los mismos sujetos.
+  - Mediciones en pares de sujetos que están emparejados de alguna manera (ej.: gemelos).
+
+- **Hipótesis**:
+  - H0: Las diferencias medianas entre las muestras son cero.
+  - H1: Las diferencias medianas entre las muestras no son cero.
+
+- **Aplicación**: Alternativa a la prueba t para muestras relacionadas, especialmente útil cuando no se puede asumir la suposición de normalidad.
+
+- **Parámetros de `wilcox.test`**:
+  - `x`: Un vector numérico de datos o una fórmula.
+  - `y`: Un vector numérico de datos. Este argumento es opcional si `x` es una fórmula.
+  - `paired`: Un valor lógico que indica si las muestras son pareadas. Debe ser `TRUE` para la prueba de Wilcoxon para muestras relacionadas.
+  - `alternative`: El tipo de hipótesis alternativa. Puede ser `"two.sided"` (por defecto), `"greater"` o `"less"`.
+  - `mu`: La mediana teórica de la diferencia. Por defecto es 0.
+  - `conf.int`: Un valor lógico que indica si debe calcularse el intervalo de confianza. Por defecto es `FALSE`.
+  - `conf.level`: El nivel de confianza para el intervalo de confianza. Por defecto es 0.95.
+
+- **Ejemplo**: Se utiliza la escala de depresión de Hamilton en 9 pacientes con ansiedad y depresión, tomadas en una primera (x) y segunda (y) visita después de iniciar la terapia con la administración de un tranquilizante.
+
+```{r}
+x= c(1.83,0.5,1.62, 2.48,1.68,1.88,1.55,3.06,1.3)
+y=c(0.78,0.647,0.598,2.05,1.06,1.29,1.06,3.14,1.29)
+R_w= wilcox.test(x,y, paired = TRUE)
+R_w
+```
+
+Hay evidencias para rechazar la hipótesis nula, ya que el p-valor es 0.03906.
+  
+
+### Prueba de Kruskal-Wallis
+- **Uso:** Comparación de más de dos grupos independientes. Se utiliza para determinar si existen diferencias entre las medianas de los distintos grupos independientes.
+- **Hipótesis:**
+  - H0: Las distribuciones de todos los grupos son iguales.
+  - H1: Al menos una de las distribuciones es diferente.
+- **Aplicación:** Alternativa a ANOVA cuando no se puede asumir normalidad o homogeneidad de varianzas.
+- **Parámetros:**
+  - `x`: Vector de datos numéricos.
+  - `g`: Factor que indica a qué grupo pertenece cada observación en x.
+- **Interpretación:**
+  - **Estadística X-squared:** Mide la diferencia en los rangos sumados entre los grupos. Un valor más alto indica mayores diferencias.
+  - **Grados de libertad (df):** Se calcula como el número de grupos menos uno.
+  - **Valor p:** Un valor p pequeño (típicamente < 0.05) indica que hay evidencia suficiente para rechazar la hipótesis nula, sugiriendo que al menos uno de los grupos es significativamente diferente.
+- **Ejemplo:** Queremos ver la eficiencia de los diferentes tipos de sprays para eliminar insectos.
+  - Hipótesis:
+    - H0: Todas las medianas de efectividad son iguales entre los diferentes tipos de sprays.
+    - H1: Al menos una mediana de efectividad es diferente entre los diferentes tipos de sprays.
+    
+```{r}
+data("InsectSprays")
+data=InsectSprays
+dim(data)
+```
+```{r}
+kruskal.test(count ~ spray, data=data)
+
+```
+Hay evidencias para rechazar la hipótesis nula, ya que el p-valor es 1.511e-10, es decir, hay diferencias significativa en la eficacia de al menos un spray.
+
+
+### Para identificar qué grupo difiere se pueden aplicar las pruebas:
+
+#### Test de Nemenyi
+- **Uso:** Comparaciones por pares entre todos los tratamientos después de identificar que existe una diferencia significativa.
+- **Función:** `kwallpairsnemenyitest`
+- **Ventajas:**
+  - Sencillo de aplicar una vez obtenidos los rangos.
+  - No requiere suposiciones paramétricas sobre la distribución de los datos.
+- **Desventajas:**
+  - Puede ser conservador, es decir, puede no detectar diferencias significativas cuando estas existen (baja potencia).
+  - No considera la estructura jerárquica de los datos si existe.
+  - Los tamaños de la muestra deben ser similares o iguales.
+- **Interpretación:**
+  - **Diferencia Significativa:** Si la diferencia entre los rangos promedio de dos tratamientos es mayor que la Diferencia Crítica, entonces esos tratamientos tienen una diferencia significativa en sus efectos.
+  - **No Diferencia Significativa:** Si la diferencia entre los rangos promedio es menor o igual a la Diferencia Crítica, no se puede afirmar que exista una diferencia significativa entre esos tratamientos.
+  
+```{r}
+library(PMCMRplus)
+r_k= kwAllPairsNemenyiTest(count ~ spray, data = data)
+r_k
+```  
+#### Interpretación de los resultados:
+- **Grupo A**
+ -A vs. B: valor p = 0.99961 (no significativo)
+ -A vs. C: valor p = 2.8e-05 (muy significativo)
+ -A vs. D: valor p = 0.02293 (significativo)
+ -A vs. E: valor p = 0.00169 (muy significativo)
+ -A vs. F: valor p = 0.99861 (no significativo)
+- **Grupo B**
+ -B vs. C: valor p = 5.7e-06 (muy significativo)
+ -B vs. D: valor p = 0.00813 (significativo)
+ -B vs. E: valor p = 0.00047 (muy significativo)
+ -B vs. F: valor p = 1.00000 (no significativo)
+- **Grupo C**
+ -C vs. D: valor p = 0.56300 (no significativo)
+ -C vs. E: valor p = 0.94109 (no significativo)
+ -C vs. F: valor p = 3.5e-06 (muy significativo)
+- **Grupo D**
+ -D vs. E: valor p = 0.97809 (no significativo)
+ -D vs. F: valor p = 0.00585 (significativo)
+-**Grupo E**
+ -E vs. F: valor p = 0.00031 (muy significativo)
+  
+
+#### Prueba de Wilcoxon por Pares con Ajuste de Bonferroni
+- **Uso:** Permite realizar comparaciones múltiples mientras se controla el riesgo de errores de Tipo I.
+- **Función:** `pairwise.wilcox.test`
+- **Ventajas:**
+  - No paramétrica: No requiere que los datos sigan una distribución normal.
+  - Emparejada: Adecuada para datos emparejados o relacionados.
+  - Manejo de pequeñas muestras: Eficiente incluso con tamaños de muestra pequeños.
+  - Simplicidad: Relativamente fácil de calcular y entender.
+- **Desventajas:**
+  - Menor potencia: Menos potente que las pruebas paramétricas equivalentes.
+  - Manejo de empates: Menos preciso que algunos otros métodos.
+  - Interacciones: No considera posibles interacciones entre las variables.
+  - Limitación en comparaciones múltiples: Requiere ajuste (como Bonferroni) para controlar el error de Tipo I, lo cual puede ser conservador y reducir la potencia de la prueba.
+- **Interpretación:**
+  - **Valor p:** Si p es menor que el nivel de significancia (α), se rechaza H0, indicando una diferencia significativa entre las dos condiciones.
+   - **Estadístico de Prueba W:** El menor de las sumas de los rangos positivos y negativos.
+
+
+
+```{r}
+library(stats)
+r_b= pairwise.wilcox.test(data$count, data$spray, p.adj="bonf")
+r_b
+```
+#### Interpretación de los resultados:
+- **Grupo A**
+ -A vs. B: valor p = 1.00000 (no significativo)
+ -A vs. C: valor p = 0.00058 (muy significativo)
+ -A vs. D: valor p = 0.00117 (muy significativo)
+ -A vs. E: valor p = 0.00051 (muy significativo)
+ -A vs. F: valor p = 1.00000 (no significativo)
+- **Grupo B**
+ -B vs. C: valor p = 0.00058 (muy significativo)
+ -B vs. D: valor p = 0.00104 (muy significativo)
+ -B vs. E: valor p = 0.00051 (muy significativo)
+ -B vs. F: valor p = 1.00000 (no significativo)
+- **Grupo C**
+ -C vs. D: valor p = 0.03977 (significativo)
+ -C vs. E: valor p = 0.78860 (no significativo)
+ -C vs. F: valor p = 0.00052 (muy significativo)
+- **Grupo D**
+ -D vs. E: valor p = 1.00000 (no significativo)
+ -D vs. F: valor p = 0.00105 (muy significativo)
+-**Grupo E**
+ -E vs. F: valor p = 0.00052 (muy significativo)
+
+
+## Prueba de Friedman
+La Prueba de Friedman se utiliza para detectar diferencias en tratamientos en datos emparejados. Es una alternativa a ANOVA de medidas repetidas.
+
+- **Hipótesis:**
+  - **H0:** Las distribuciones de todas las mediciones son iguales.
+  - **H1:** Al menos una de las distribuciones es diferente.
+
+- **Ejemplo:** Evaluar diferencias en las puntuaciones de catadores de vino.
+```{r}
+library(WRS2)
+library(agricolae)
+
+data("WineTasting")
+data = WineTasting
+dim(data)
+```
+```{r}
+attach(data) 
+data %>% head() %>% kable(format = "html", escape = FALSE) %>% kable_styling("striped", full_width = FALSE, position = "center",font_size = 16)%>%
+ row_spec(0,bold = TRUE, background = "pink",monospace=TRUE, align = "center")
+```
+
+```{r}
+y = reshape(data, v.names = "Taste", idvar = "Taster", timevar = "Wine", direction = "wide")
+attach(y) 
+y %>% head() %>% kable(format = "html", escape = FALSE) %>% kable_styling("striped", full_width = FALSE, position = "center",font_size = 16)%>%
+ row_spec(0,bold = TRUE, background = "lightblue",monospace=TRUE, align = "center")
+```
+
+```{r}
+boxplot(y[,-1], 
+        col=c("pink", "violet", "lightblue"),
+        xlab= "Tipos de vinos",
+        ylab="Sabor",
+        main="Sabor del vino según el tipo")
+```
+
+```{r}
+friedman.test(as.matrix(y[,-1]))
+```
+Hay evidencias para rechazar la hipótesis nula, ya que el p-valor es  0.003805.
+
+
+```{r}
+pairwise.wilcox.test(Taste,
+                     Wine,
+                     p.adj="bonferroni",
+                     exact= FALSE,
+                     paired = TRUE)
+```
+#### Interpretación de los resultados:
+ -A vs. B: valor p = 1.00000 (no significativo)
+ -A vs. C: valor p = 0.0439 (significativo)
+ -B vs. C: valor p = 0.0058 (muy significativo)
+ 
+
+```{r}
+frdAllPairsNemenyiTest(as.matrix(y[,-1]))
+```
+#### Interpretación de los resultados:
+ -A vs. B: valor p = 0.6374 (no significativo)
+ -A vs. C: valor p = 0.0044(muy significativo)
+ -B vs. C: valor p = 0.0614 (no significativo)
+
+
+
+## Principales Pruebas Robustas
+
+### Prueba para dos muestras independientes:
+- **Uso:** Comparación de dos grupos distintos y no relacionados.
+```{r}
+data("eurosoccer")
+data=eurosoccer
+attach(data) 
+data %>% head() %>% kable(format = "html", escape = FALSE) %>% kable_styling("striped", full_width = FALSE, position = "center",font_size = 16)%>%
+ row_spec(0,bold = TRUE, background = "gray",monospace=TRUE, align = "center")
+```
+
+
+```{r}
+levels(data$League)
+```
+```{r}
+spain_germany <- data[which(data$League == "Spain" | data$League == "Germany"), ]
+spain_germany$League <- droplevels(spain_germany$League)
+levels(spain_germany$League)
+```
+
+```{r}
+boxplot(spain_germany$GoalsGame ~ spain_germany$League, 
+        col=c("lightblue", "lightgreen"),
+        xlab="Equipos",
+        ylab="Número de goles",
+        main="Goles por equipo")
+```
+
+```{r}
+pb2gen(GoalsGame ~ League, data = data, est="median")
+```
+El valor p es 0.20868, esto indica que no hay suficiente evidencia para rechazar la hipótesis nula de que no hay diferencia en las medianas de goles por juego entre las ligas. 
+
+
+
+### Prueba para dos muestras emparejadas:
+- **Uso:** Comparación de dos muestras emparejadas o relacionadas.
+
+```{r}
+library(MASS)
+data(anorexia)
+data=anorexia
+
+data %>% 
+  head() %>% 
+  kable(format = "html", escape = FALSE)%>% 
+  kable_styling("striped",
+                                             full_width = FALSE,
+                                             font_size = 16,
+                                             position = "center")%>%
+  row_spec(0, col="red", background = "pink", bold = TRUE, align = "center", monospace = TRUE)
+```
+
+
+
+
+```{r}
+library(MASS)
+library(kableExtra)
+library(DT)
+
+data <- anorexia
+
+datatable(data,
+          options = list(
+            pageLength = 10,  
+            autoWidth = TRUE, 
+            dom = 't',  
+            stripeClasses = c('stripe-1', 'stripe-2')),
+          class = 'display') %>%
+  formatStyle(
+    0,  
+    color = 'red',
+    backgroundColor = 'pink',
+    fontWeight = 'bold',
+    fontFamily = 'monospace',
+    textAlign = 'center') 
+
+```
+
+
+```{r}
+a_ft=subset(anorexia, subset = Treat== "FT")
+boxplot(a_ft[, c("Prewt", "Postwt")],
+        xlab="Momentos del peso",
+        ylab="Peso en libras",
+        main= "Distribución del peso antes y después ",
+        col = c("#FF9999", "#9999FF"))
+```
+
+```{r}
+yuend(a_ft$Prewt, a_ft$Postwt)
+```
+El valor p es 0.00332, esto indica que hay una fuerte evidencia contra la hipótesis nula de que no hay diferencia entre los pesos antes y después del tratamiento.
+
+
+
+### ANOVA Robusta:
+- **Uso:** Análisis de varianza sin asumir homogeneidad de varianzas.
+
+
+### Muestras independientes:
+```{r}
+data("eurosoccer")
+data= eurosoccer
+
+
+
+boxplot(GoalsGame ~ League, data = data, las= 2,
+        xlab="Ligas",
+        ylab="Goles por partido",
+        main= "Distribución del Número de Goles por Partido en Diferentes Ligas",
+        col = c("red", "orange", "yellow", "green", "blue"))
+
+
+
+
+
+```
+
+```{r}
+med1way(GoalsGame ~ League, data = data)
+```
+El valor p es 0.217, esto indica que no hay suficiente evidencia para rechazar la hipótesis nula de que las medianas de goles por juego entre las ligas son iguales.
+
+### Muestras emparejadas:
+```{r}
+data("WineTasting")
+data=WineTasting
+
+boxplot(Taste ~ Wine, data = data,
+        xlab = "Vino",
+        ylab = "Puntuación de Sabor",
+        main = "Distribución de la Puntuación de Sabor para Diferentes Vinos",
+        col = c("violet", "blue", "lightblue"))
+
+```
+
+
+```{r}
+rmanova(Taste, Wine, Taster)
+```
+El valor p es 0.34829, esto indica que no hay suficiente evidencia para rechazar la hipótesis nula de que no hay diferencias en las calificaciones de sabor entre los diferentes tipos de vino.
+
+
+
+
+
+
